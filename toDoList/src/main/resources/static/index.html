@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Todo List</title>
+ <style>
+  body {
+   font-family: Arial, sans-serif;
+   background-color: #f4f4f9;
+   margin: 0;
+   padding: 20px;
+  }
+  h1 {
+   text-align: center;
+  }
+  .todo-list {
+   list-style-type: none;
+   padding: 0;
+   margin-top: 20px;
+  }
+  .todo-item {
+   background-color: #fff;
+   margin: 5px 0;
+   padding: 10px;
+   border-radius: 5px;
+   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  .todo-item.completed {
+   text-decoration: line-through;
+   background-color: #e0e0e0;
+  }
+  .todo-item button {
+   background-color: #ff5c5c;
+   color: white;
+   border: none;
+   padding: 5px 10px;
+   cursor: pointer;
+   border-radius: 5px;
+   font-size: 14px;
+  }
+  .todo-item button:hover {
+   background-color: #f44336;
+  }
+  .form-container {
+   margin-top: 20px;
+   text-align: center;
+  }
+  .form-container input, .form-container textarea, .form-container select {
+   padding: 10px;
+   margin: 5px;
+   font-size: 14px;
+   width: 250px;
+   max-width: 100%;
+   border-radius: 5px;
+  }
+  .form-container button {
+   background-color: #4CAF50;
+   color: white;
+   border: none;
+   padding: 10px 20px;
+   cursor: pointer;
+   border-radius: 5px;
+   font-size: 16px;
+  }
+  .form-container button:hover {
+   background-color: #45a049;
+  }
+ </style>
+</head>
+<body>
+
+<h1>Todo List</h1>
+
+<!-- Todo Ekleme Formu -->
+<div class="form-container">
+ <h2>Yeni ToDo Ekle</h2>
+ <input type="text" id="todoTitle" placeholder="Başlık" required>
+ <textarea id="todoDescription" placeholder="Açıklama" required></textarea>
+
+ <!-- Completed Durumu -->
+ <label for="todoCompleted">Tamamlanma Durumu:</label>
+ <select id="todoCompleted">
+  <option value="false">No</option>
+  <option value="true">Yes</option>
+ </select>
+
+ <button onclick="addTodo()">Add Todo</button>
+</div>
+
+<ul id="todoList" class="todo-list">
+ <!-- Todo'lar burada görüntülenecektir. -->
+</ul>
+
+<script>
+ // API URL
+ const apiUrl = '/api/todos/getAll';
+
+ // Sayfa yüklendiğinde todo'ları al
+ document.addEventListener('DOMContentLoaded', () => {
+  fetchTodos();
+ });
+
+ // API'den todo'ları alıp listeyi güncelleyen fonksiyon
+ function fetchTodos() {
+  fetch(apiUrl)
+          .then(response => response.json())
+          .then(todos => {
+           const todoList = document.getElementById('todoList');
+           todoList.innerHTML = ''; // Mevcut listeyi temizle
+
+           todos.forEach(todo => {
+            const todoItem = document.createElement('li');
+            todoItem.classList.add('todo-item');
+            if (todo.completed) {
+             todoItem.classList.add('completed');
+            }
+
+            // Todo'yu listeye eklerken ID'yi ve diğer bilgileri doğru geçir
+            todoItem.innerHTML = `
+            <span>${todo.title}</span>
+            <p>${todo.description}</p>
+            <p><strong>Tamamlandı:</strong> ${todo.completed ? 'Evet' : 'Hayır'}</p>
+            <button onclick="deleteTodo(${todo.id})">Sil</button>
+            <button onclick="editTodo(${todo.id})">Güncelle</button>
+            <button onclick="toggleCompleted(${todo.id}, ${todo.completed}, '${todo.title}', '${todo.description}')">Tamamlanma Durumu Değiştir</button>
+        `;
+
+            todoList.appendChild(todoItem);
+           });
+          })
+          .catch(error => {
+           console.error('Todoları alırken hata oluştu:', error);
+          });
+ }
+
+ // Yeni Todo ekleme fonksiyonu
+ function addTodo() {
+  const title = document.getElementById('todoTitle').value;
+  const description = document.getElementById('todoDescription').value;
+  const completed = document.getElementById('todoCompleted').value === 'true';  // 'Yes' için true, 'No' için false
+
+  if (!title || !description) {
+   alert("Başlık ve Açıklama girilmesi gerekmektedir!");
+   return;
+  }
+
+  const newTodo = {
+   title: title,
+   description: description,
+   completed: completed
+  };
+
+  // API'ye POST isteği gönder
+  fetch('/api/todos/create', {
+   method: 'POST',
+   headers: {
+    'Content-Type': 'application/json'
+   },
+   body: JSON.stringify(newTodo)
+  })
+          .then(response => {
+           if (response.ok) {
+            fetchTodos(); // Todo eklendikten sonra listeyi güncelle
+           } else {
+            console.error('Todo eklemesi başarısız oldu');
+           }
+          })
+          .catch(error => {
+           console.error('Todo eklerken hata oluştu:', error);
+          });
+
+  // Formu sıfırla
+  document.getElementById('todoTitle').value = '';
+  document.getElementById('todoDescription').value = '';
+  document.getElementById('todoCompleted').value = 'false'; // Default olarak 'No' seçili
+ }
+
+ // Todo'yu silme fonksiyonu
+ function deleteTodo(id) {
+  console.log('Todo Siliniyor, ID:', id);  // id'yi kontrol etmek için konsola yazdır
+
+  // DELETE isteği gönder
+  fetch(`/api/todos/${id}`, {
+   method: 'DELETE'
+  })
+          .then(response => {
+           if (response.ok) {
+            fetchTodos(); // Todo'yu sildikten sonra listeyi güncelle
+           } else {
+            console.error('Todo silinemedi');
+           }
+          })
+          .catch(error => {
+           console.error('Todo silerken hata oluştu:', error);
+          });
+ }
+
+ // Todo'yu güncelleme fonksiyonu
+ function editTodo(id) {
+  const newTitle = prompt("Yeni Başlığı giriniz:");
+  const newDescription = prompt("Yeni Açıklamayı Giriniz:");
+
+  if (!newTitle || !newDescription) {
+   alert("Başlık ve açıklama girmeniz gerekmektedir!");
+   return;
+  }
+
+  const updatedTodo = {
+   title: newTitle,
+   description: newDescription,
+   completed: false
+  };
+
+  // PUT isteği gönder
+  fetch(`/api/todos/${id}`, {
+   method: 'PUT',
+   headers: {
+    'Content-Type': 'application/json'
+   },
+   body: JSON.stringify(updatedTodo)
+  })
+          .then(response => {
+           if (response.ok) {
+            fetchTodos(); // Todo güncellendikten sonra listeyi güncelle
+           } else {
+            console.error('Todo güncellenemedi');
+           }
+          })
+          .catch(error => {
+           console.error('Todo güncellenirken hata oluştu:', error);
+          });
+ }
+
+ // Todo'nun tamamlanma durumunu değiştirme fonksiyonu
+ function toggleCompleted(id, currentStatus, title, description) {
+  const updatedTodo = {
+   title: title,         // Başlık korundu
+   description: description, // Açıklama korundu
+   completed: !currentStatus // Yalnızca tamamlanma durumunu değiştirdik
+  };
+
+  // PUT isteği gönder
+  fetch(`/api/todos/${id}`, {
+   method: 'PUT',
+   headers: {
+    'Content-Type': 'application/json'
+   },
+   body: JSON.stringify(updatedTodo)
+  })
+          .then(response => {
+           if (response.ok) {
+            fetchTodos(); // Listeyi güncelle
+           } else {
+            console.error('Todo güncellenemedi');
+           }
+          })
+          .catch(error => {
+           console.error('Todo güncellerken hata oluştu:', error);
+          });
+ }
+</script>
+
+</body>
+</html>
